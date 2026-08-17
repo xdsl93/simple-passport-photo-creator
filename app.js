@@ -17,7 +17,7 @@ const GRID_GAP_PT = 10;
 const CANVAS_LONG_SIDE = 1350;
 const TRANSLATIONS = {
   it: {
-    appTitle: "Fototessere PDF",
+    appTitle: "Generatore Fototessere PDF",
     metaDescription: "Carica una foto e ottieni un PDF A4 con 9 immagini da 3,5 x 4,5 cm. Tutto offline. Facile no?",
     eyebrow: "PWA offline",
     description: "Carica una foto e ottieni un PDF A4 con 9 immagini da 3,5 x 4,5 cm. Tutto offline. Facile no?",
@@ -53,7 +53,7 @@ const TRANSLATIONS = {
     installGeneric: "Apri il menu del browser e scegli Installa app o Aggiungi a schermata Home.",
   },
   en: {
-    appTitle: "Passport Photo PDF",
+    appTitle: "Passport Photo PDF Generator",
     metaDescription: "Upload a photo and get an A4 PDF with 9 images sized 3.5 x 4.5 cm. Fully offline. Easy, right?",
     eyebrow: "Offline PWA",
     description: "Upload a photo and get an A4 PDF with 9 images sized 3.5 x 4.5 cm. Fully offline. Easy, right?",
@@ -89,7 +89,7 @@ const TRANSLATIONS = {
     installGeneric: "Open the browser menu and choose Install app or Add to Home screen.",
   },
   es: {
-    appTitle: "Fotos Carnet PDF",
+    appTitle: "Fotos Carnet PDF Generator",
     metaDescription: "Sube una foto y obtén un PDF A4 con 9 imágenes de 3,5 x 4,5 cm. Todo offline. Fácil, ¿no?",
     eyebrow: "PWA offline",
     description: "Sube una foto y obtén un PDF A4 con 9 imágenes de 3,5 x 4,5 cm. Todo offline. Fácil, ¿no?",
