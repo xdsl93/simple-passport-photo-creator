@@ -1,0 +1,326 @@
+:root {
+  color-scheme: light;
+  --bg: #f7f4ed;
+  --ink: #172421;
+  --muted: #61706c;
+  --line: #d9d1c4;
+  --panel: #fffdf8;
+  --accent: #146c63;
+  --accent-strong: #0e504a;
+  --danger: #9f2f2f;
+  --shadow: 0 22px 60px rgba(28, 42, 37, 0.14);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--ink);
+  background:
+    linear-gradient(135deg, rgba(20, 108, 99, 0.12), transparent 36%),
+    linear-gradient(315deg, rgba(184, 94, 54, 0.12), transparent 34%),
+    var(--bg);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+select {
+  font: inherit;
+}
+
+.app-shell {
+  width: min(1120px, 100%);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: clamp(24px, 5vw, 56px);
+  display: grid;
+  place-items: center;
+  gap: 22px;
+}
+
+.workspace {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.82fr) minmax(320px, 1.18fr);
+  gap: clamp(28px, 5vw, 72px);
+  align-items: center;
+}
+
+.intro {
+  max-width: 480px;
+}
+
+.eyebrow {
+  margin: 0 0 14px;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2.25rem, 5vw, 4.7rem);
+  line-height: 0.95;
+  letter-spacing: 0;
+}
+
+.intro p:not(.eyebrow) {
+  margin: 22px 0 0;
+  color: var(--muted);
+  font-size: clamp(1rem, 1.6vw, 1.18rem);
+  line-height: 1.6;
+}
+
+.install-button {
+  color: var(--accent);
+  background: #e4f0eb;
+}
+
+.install-button:hover {
+  color: white;
+  background: var(--accent);
+}
+
+.tool-panel {
+  width: 100%;
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid rgba(23, 36, 33, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 253, 248, 0.88);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.size-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.size-controls label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.size-controls input {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--ink);
+  background: white;
+}
+
+.size-controls input:focus {
+  outline: 3px solid rgba(20, 108, 99, 0.18);
+  border-color: var(--accent);
+}
+
+.upload-area {
+  position: relative;
+  display: grid;
+  min-height: 220px;
+  border: 2px dashed var(--line);
+  border-radius: 8px;
+  background: #fbf8f0;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.upload-area.is-dragging {
+  border-color: var(--accent);
+  background: #eef8f4;
+  transform: translateY(-2px);
+}
+
+.upload-area input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.upload-label {
+  display: grid;
+  place-items: center;
+  gap: 14px;
+  padding: 28px;
+  color: var(--muted);
+  text-align: center;
+  cursor: pointer;
+}
+
+.upload-icon {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  background: var(--accent);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.upload-label strong {
+  display: block;
+  color: var(--ink);
+  font-size: 1.08rem;
+}
+
+.upload-label small {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.92rem;
+}
+
+.preview-area {
+  display: grid;
+  gap: 18px;
+}
+
+.preview-frame {
+  width: min(100%, 340px);
+  aspect-ratio: var(--photo-ratio, 7 / 9);
+  justify-self: center;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  background: #ece7dd;
+}
+
+.photo-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr;
+  gap: 12px;
+}
+
+.button {
+  min-height: 48px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 18px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 150ms ease, background 150ms ease, color 150ms ease;
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.button-primary {
+  color: white;
+  background: var(--accent);
+}
+
+.button-primary:hover {
+  background: var(--accent-strong);
+}
+
+.button-secondary {
+  color: var(--danger);
+  background: #f5e9e4;
+}
+
+.button-secondary:hover {
+  background: #efd8ce;
+}
+
+.status {
+  min-height: 1.4em;
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
+.app-footer {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+
+.language-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.language-control select {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--ink);
+  background: rgba(255, 253, 248, 0.9);
+}
+
+.language-control select:focus {
+  outline: 3px solid rgba(20, 108, 99, 0.18);
+  border-color: var(--accent);
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    align-items: start;
+    padding: 22px;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+    gap: 26px;
+  }
+
+  .intro {
+    max-width: none;
+  }
+
+  .tool-panel {
+    padding: 16px;
+  }
+
+  .photo-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .app-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .language-control {
+    justify-content: space-between;
+  }
+}
