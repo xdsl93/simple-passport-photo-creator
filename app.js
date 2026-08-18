@@ -21,6 +21,8 @@ const CANVAS_LONG_SIDE = 1350;
 const TRANSLATIONS = {
   it: {
     appTitle: "Generatore Fototessere PDF",
+    metaDescription: "Carica una foto e ottieni un PDF A4 con 9 immagini da 3,5 x 4,5 cm. Tutto offline. Facile no?",
+    appTitle: "Generatore Fototessere PDF",
     metaDescription: "Carica una foto e ottieni un PDF A4 con 16 immagini da 3,5 x 4,5 cm. Tutto offline. Facile no?",
     eyebrow: "PWA offline",
     description: "Carica una foto e ottieni un PDF A4 con 16 immagini da 3,5 x 4,5 cm. Tutto offline. Facile no?",
