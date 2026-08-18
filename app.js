@@ -8,22 +8,28 @@ const installButton = document.querySelector("#installButton");
 const languageSelect = document.querySelector("#languageSelect");
 const widthInput = document.querySelector("#widthInput");
 const heightInput = document.querySelector("#heightInput");
+const photoCountInput = document.querySelector("#photoCountInput");
 const statusMessage = document.querySelector("#statusMessage");
 
 const CM_TO_PT = 28.3464566929;
 const A4 = { width: 595.28, height: 841.89 };
 const DEFAULT_PHOTO_CM = { width: 3.5, height: 4.5 };
+const DEFAULT_PHOTO_COUNT = 16;
+const MAX_PHOTO_COUNT = 200;
 const GRID_GAP_PT = 10;
 const CANVAS_LONG_SIDE = 1350;
 const TRANSLATIONS = {
   it: {
     appTitle: "Generatore Fototessere PDF",
     metaDescription: "Carica una foto e ottieni un PDF A4 con 9 immagini da 3,5 x 4,5 cm. Tutto offline. Facile no?",
+    appTitle: "Generatore Fototessere PDF",
+    metaDescription: "Carica una foto e ottieni un PDF A4 con 16 immagini da 3,5 x 4,5 cm. Tutto offline. Facile no?",
     eyebrow: "PWA offline",
-    description: "Carica una foto e ottieni un PDF A4 con 9 immagini da 3,5 x 4,5 cm. Tutto offline. Facile no?",
+    description: "Carica una foto e ottieni un PDF A4 con 16 immagini da 3,5 x 4,5 cm. Tutto offline. Facile no?",
     sizeControls: "Dimensioni fototessera",
     widthLabel: "Larghezza cm",
     heightLabel: "Altezza cm",
+    photoCountLabel: "Numero foto",
     uploadTitle: "Carica una foto",
     uploadHint: "JPG, PNG o immagine dalla fotocamera",
     previewCanvas: "Anteprima fototessera",
@@ -38,7 +44,7 @@ const TRANSLATIONS = {
     installCancelled: "Installazione annullata.",
     noPhoto: "Carica una foto prima di generare il PDF.",
     creatingPdf: "Creo il PDF...",
-    shareText: "PDF con 9 fototessere {width} x {height} cm.",
+    shareText: "PDF con {count} fototessere {width} x {height} cm.",
     pdfShared: "PDF pronto e condiviso.",
     pdfDownloaded: "PDF scaricato. Puoi aprirlo per stamparlo.",
     pdfError: "Non sono riuscito a generare il PDF. Riprova con un'altra immagine.",
@@ -47,16 +53,17 @@ const TRANSLATIONS = {
     unreadableImage: "Immagine non leggibile. Prova con un file JPG o PNG.",
     previewUpdated: "Anteprima aggiornata: {width} x {height} cm.",
     photoRemoved: "Foto eliminata. Puoi caricarne una nuova.",
-    a4FitError: "Queste dimensioni non entrano in un foglio A4 con griglia 3x3. Riduci larghezza o altezza.",
+    a4FitError: "Queste dimensioni non entrano in un foglio A4. Riduci larghezza o altezza.",
+    invalidPhotoCount: "Inserisci un numero di foto tra 1 e 200.",
     installIos: "Su iPhone/iPad: tocca Condividi e poi Aggiungi alla schermata Home.",
     installAndroid: "Su Android: apri il menu del browser e scegli Installa app o Aggiungi a schermata Home.",
     installGeneric: "Apri il menu del browser e scegli Installa app o Aggiungi a schermata Home.",
   },
   en: {
     appTitle: "Passport Photo PDF Generator",
-    metaDescription: "Upload a photo and get an A4 PDF with 9 images sized 3.5 x 4.5 cm. Fully offline. Easy, right?",
+    metaDescription: "Upload a photo and get an A4 PDF with 16 images sized 3.5 x 4.5 cm. Fully offline. Easy, right?",
     eyebrow: "Offline PWA",
-    description: "Upload a photo and get an A4 PDF with 9 images sized 3.5 x 4.5 cm. Fully offline. Easy, right?",
+    description: "Upload a photo and get an A4 PDF with 16 images sized 3.5 x 4.5 cm. Fully offline. Easy, right?",
     sizeControls: "Passport photo dimensions",
     widthLabel: "Width cm",
     heightLabel: "Height cm",
@@ -74,7 +81,7 @@ const TRANSLATIONS = {
     installCancelled: "Installation cancelled.",
     noPhoto: "Upload a photo before generating the PDF.",
     creatingPdf: "Creating the PDF...",
-    shareText: "PDF with 9 passport photos sized {width} x {height} cm.",
+    shareText: "PDF with 16 passport photos sized {width} x {height} cm.",
     pdfShared: "PDF ready and shared.",
     pdfDownloaded: "PDF downloaded. Open it to print.",
     pdfError: "I could not generate the PDF. Try again with another image.",
@@ -90,9 +97,9 @@ const TRANSLATIONS = {
   },
   es: {
     appTitle: "Fotos Carnet PDF Generator",
-    metaDescription: "Sube una foto y obtén un PDF A4 con 9 imágenes de 3,5 x 4,5 cm. Todo offline. Fácil, ¿no?",
+    metaDescription: "Sube una foto y obtén un PDF A4 con 16 imágenes de 3,5 x 4,5 cm. Todo offline. Fácil, ¿no?",
     eyebrow: "PWA offline",
-    description: "Sube una foto y obtén un PDF A4 con 9 imágenes de 3,5 x 4,5 cm. Todo offline. Fácil, ¿no?",
+    description: "Sube una foto y obtén un PDF A4 con 16 imágenes de 3,5 x 4,5 cm. Todo offline. Fácil, ¿no?",
     sizeControls: "Dimensiones de la foto carnet",
     widthLabel: "Ancho cm",
     heightLabel: "Alto cm",
@@ -110,7 +117,7 @@ const TRANSLATIONS = {
     installCancelled: "Instalacion cancelada.",
     noPhoto: "Sube una foto antes de generar el PDF.",
     creatingPdf: "Creando el PDF...",
-    shareText: "PDF con 9 fotos carnet de {width} x {height} cm.",
+    shareText: "PDF con 16 fotos carnet de {width} x {height} cm.",
     pdfShared: "PDF listo y compartido.",
     pdfDownloaded: "PDF descargado. Abrelo para imprimirlo.",
     pdfError: "No pude generar el PDF. Intentalo con otra imagen.",
@@ -255,7 +262,7 @@ pdfButton.addEventListener("click", async () => {
     const jpeg = await canvasToJpegBytes(photo);
     const pdfBytes = createPdf(jpeg.bytes, photo.width, photo.height, size);
     const blob = new Blob([pdfBytes], { type: "application/pdf" });
-    const fileName = "fototessere-3x3.pdf";
+    const fileName = "fototessere.pdf";
     const file = new File([blob], fileName, { type: "application/pdf" });
 
     if (navigator.canShare?.({ files: [file] })) {

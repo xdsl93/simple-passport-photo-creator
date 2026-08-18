@@ -1,7 +1,7 @@
 {
   "name": "Fototessere PDF",
   "short_name": "Fototessere",
-  "description": "Carica una foto e ottieni un PDF A4 con 9 immagini da 3,5 x 4,5 cm. Tutto offline. Facile no?",
+  "description": "Carica una foto e ottieni un PDF A4 con 16 immagini da 3,5 x 4,5 cm. Tutto offline. Facile no?",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

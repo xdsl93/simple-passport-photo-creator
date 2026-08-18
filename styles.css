@@ -134,6 +134,10 @@ h1 {
   border-color: var(--accent);
 }
 
+.photo-count-field {
+  grid-column: 1 / -1;
+}
+
 .upload-area {
   position: relative;
   display: grid;
