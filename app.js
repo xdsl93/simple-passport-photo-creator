@@ -14,14 +14,11 @@ const statusMessage = document.querySelector("#statusMessage");
 const CM_TO_PT = 28.3464566929;
 const A4 = { width: 595.28, height: 841.89 };
 const DEFAULT_PHOTO_CM = { width: 3.5, height: 4.5 };
-const DEFAULT_PHOTO_COUNT = 16;
 const MAX_PHOTO_COUNT = 200;
 const GRID_GAP_PT = 10;
 const CANVAS_LONG_SIDE = 1350;
 const TRANSLATIONS = {
   it: {
-    appTitle: "Generatore Fototessere PDF",
-    metaDescription: "Carica una foto e ottieni un PDF A4 con 9 immagini da 3,5 x 4,5 cm. Tutto offline. Facile no?",
     appTitle: "Generatore Fototessere PDF",
     metaDescription: "Carica una foto e ottieni un PDF A4 con 16 immagini da 3,5 x 4,5 cm. Tutto offline. Facile no?",
     eyebrow: "PWA offline",
@@ -67,6 +64,7 @@ const TRANSLATIONS = {
     sizeControls: "Passport photo dimensions",
     widthLabel: "Width cm",
     heightLabel: "Height cm",
+    photoCountLabel: "Number of photos",
     uploadTitle: "Upload a photo",
     uploadHint: "JPG, PNG or camera image",
     previewCanvas: "Passport photo preview",
@@ -81,7 +79,7 @@ const TRANSLATIONS = {
     installCancelled: "Installation cancelled.",
     noPhoto: "Upload a photo before generating the PDF.",
     creatingPdf: "Creating the PDF...",
-    shareText: "PDF with 16 passport photos sized {width} x {height} cm.",
+    shareText: "PDF with {count} passport photos sized {width} x {height} cm.",
     pdfShared: "PDF ready and shared.",
     pdfDownloaded: "PDF downloaded. Open it to print.",
     pdfError: "I could not generate the PDF. Try again with another image.",
@@ -90,7 +88,8 @@ const TRANSLATIONS = {
     unreadableImage: "Image could not be read. Try a JPG or PNG file.",
     previewUpdated: "Preview updated: {width} x {height} cm.",
     photoRemoved: "Photo removed. You can upload a new one.",
-    a4FitError: "These dimensions do not fit on an A4 sheet in a 3x3 grid. Reduce width or height.",
+    a4FitError: "These dimensions do not fit on an A4 sheet. Reduce width or height.",
+    invalidPhotoCount: "Enter a number of photos between 1 and 200.",
     installIos: "On iPhone/iPad: tap Share, then Add to Home Screen.",
     installAndroid: "On Android: open the browser menu and choose Install app or Add to Home screen.",
     installGeneric: "Open the browser menu and choose Install app or Add to Home screen.",
@@ -103,6 +102,7 @@ const TRANSLATIONS = {
     sizeControls: "Dimensiones de la foto carnet",
     widthLabel: "Ancho cm",
     heightLabel: "Alto cm",
+    photoCountLabel: "Numero de fotos",
     uploadTitle: "Sube una foto",
     uploadHint: "JPG, PNG o imagen de la cámara",
     previewCanvas: "Vista previa de foto carnet",
@@ -117,7 +117,7 @@ const TRANSLATIONS = {
     installCancelled: "Instalacion cancelada.",
     noPhoto: "Sube una foto antes de generar el PDF.",
     creatingPdf: "Creando el PDF...",
-    shareText: "PDF con 16 fotos carnet de {width} x {height} cm.",
+    shareText: "PDF con {count} fotos carnet de {width} x {height} cm.",
     pdfShared: "PDF listo y compartido.",
     pdfDownloaded: "PDF descargado. Abrelo para imprimirlo.",
     pdfError: "No pude generar el PDF. Intentalo con otra imagen.",
@@ -126,7 +126,8 @@ const TRANSLATIONS = {
     unreadableImage: "No se puede leer la imagen. Prueba con un archivo JPG o PNG.",
     previewUpdated: "Vista previa actualizada: {width} x {height} cm.",
     photoRemoved: "Foto eliminada. Puedes subir una nueva.",
-    a4FitError: "Estas dimensiones no caben en una hoja A4 con una cuadrícula 3x3. Reduce el ancho o el alto.",
+    a4FitError: "Estas dimensiones no caben en una hoja A4. Reduce el ancho o el alto.",
+    invalidPhotoCount: "Introduce un numero de fotos entre 1 y 200.",
     installIos: "En iPhone/iPad: toca Compartir y luego Añadir a pantalla de inicio.",
     installAndroid: "En Android: abre el menu del navegador y elige Instalar app o Añadir a pantalla de inicio.",
     installGeneric: "Abre el menu del navegador y elige Instalar app o Añadir a pantalla de inicio.",
@@ -250,6 +251,12 @@ pdfButton.addEventListener("click", async () => {
 
   try {
     const size = getPhotoSizeCm();
+    const photoCount = getPhotoCount();
+    if (!photoCount) {
+      setStatus(t("invalidPhotoCount"));
+      return;
+    }
+
     const fitError = getA4FitError(size);
     if (fitError) {
       setStatus(fitError);
@@ -260,15 +267,16 @@ pdfButton.addEventListener("click", async () => {
     setStatus(t("creatingPdf"));
     const photo = createPassportCanvas(selectedImage, ...getOutputCanvasSize(size));
     const jpeg = await canvasToJpegBytes(photo);
-    const pdfBytes = createPdf(jpeg.bytes, photo.width, photo.height, size);
+    const pdfBytes = createPdf(jpeg.bytes, photo.width, photo.height, size, photoCount);
     const blob = new Blob([pdfBytes], { type: "application/pdf" });
-    const fileName = "fototessere.pdf";
+    const fileName = getPdfFileName(size, photoCount);
     const file = new File([blob], fileName, { type: "application/pdf" });
 
     if (navigator.canShare?.({ files: [file] })) {
       await navigator.share({
         title: t("appTitle"),
         text: t("shareText", {
+          count: photoCount,
           width: formatCm(size.width),
           height: formatCm(size.height),
         }),
@@ -381,10 +389,13 @@ function canvasToJpegBytes(canvas) {
   });
 }
 
-function createPdf(jpegBytes, imageWidth, imageHeight, photoSizeCm) {
+function createPdf(jpegBytes, imageWidth, imageHeight, photoSizeCm, photoCount) {
   const encoder = new TextEncoder();
   const chunks = [];
   const offsets = [0];
+  const pageLayouts = createPageLayouts(photoSizeCm, photoCount);
+  const firstPageObject = 4;
+  const objectCount = 3 + pageLayouts.length * 2;
   let length = 0;
 
   const appendText = (text) => appendBytes(encoder.encode(text));
@@ -400,28 +411,36 @@ function createPdf(jpegBytes, imageWidth, imageHeight, photoSizeCm) {
 
   appendText("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
   writeObject(1, "<< /Type /Catalog /Pages 2 0 R >>");
-  writeObject(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
-  writeObject(
-    3,
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${A4.width} ${A4.height}] /Resources << /XObject << /Im1 4 0 R >> >> /Contents 5 0 R >>`
-  );
+  const pageReferences = pageLayouts
+    .map((_, index) => `${firstPageObject + index * 2} 0 R`)
+    .join(" ");
+  writeObject(2, `<< /Type /Pages /Kids [${pageReferences}] /Count ${pageLayouts.length} >>`);
 
-  offsets[4] = length;
+  offsets[3] = length;
   appendText(
-    `4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${imageWidth} /Height ${imageHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`
+    `3 0 obj\n<< /Type /XObject /Subtype /Image /Width ${imageWidth} /Height ${imageHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`
   );
   appendBytes(jpegBytes);
   appendText("\nendstream\nendobj\n");
 
-  const content = createPdfContentStream(photoSizeCm);
-  writeObject(5, `<< /Length ${content.length} >>\nstream\n${content}endstream`);
+  pageLayouts.forEach((layout, index) => {
+    const pageObject = firstPageObject + index * 2;
+    const contentObject = pageObject + 1;
+    writeObject(
+      pageObject,
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${A4.width} ${A4.height}] /Resources << /XObject << /Im1 3 0 R >> >> /Contents ${contentObject} 0 R >>`
+    );
+
+    const content = createPdfContentStream(layout);
+    writeObject(contentObject, `<< /Length ${content.length} >>\nstream\n${content}endstream`);
+  });
 
   const xrefOffset = length;
-  appendText(`xref\n0 6\n0000000000 65535 f \n`);
-  for (let i = 1; i <= 5; i += 1) {
+  appendText(`xref\n0 ${objectCount + 1}\n0000000000 65535 f \n`);
+  for (let i = 1; i <= objectCount; i += 1) {
     appendText(`${String(offsets[i]).padStart(10, "0")} 00000 n \n`);
   }
-  appendText(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
+  appendText(`trailer\n<< /Size ${objectCount + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
 
   const output = new Uint8Array(length);
   let position = 0;
@@ -432,22 +451,22 @@ function createPdf(jpegBytes, imageWidth, imageHeight, photoSizeCm) {
   return output;
 }
 
-function createPdfContentStream(photoSizeCm) {
-  const photoPt = cmToPtSize(photoSizeCm);
-  const gridWidth = photoPt.width * 3 + GRID_GAP_PT * 2;
-  const gridHeight = photoPt.height * 3 + GRID_GAP_PT * 2;
+function createPdfContentStream(layout) {
+  const { photoPt, columns, rows, count } = layout;
+  const gridWidth = photoPt.width * columns + GRID_GAP_PT * (columns - 1);
+  const gridHeight = photoPt.height * rows + GRID_GAP_PT * (rows - 1);
   const startX = (A4.width - gridWidth) / 2;
   const topY = (A4.height - gridHeight) / 2 + gridHeight;
   const commands = [];
 
-  for (let row = 0; row < 3; row += 1) {
-    for (let col = 0; col < 3; col += 1) {
-      const x = startX + col * (photoPt.width + GRID_GAP_PT);
-      const y = topY - (row + 1) * photoPt.height - row * GRID_GAP_PT;
-      commands.push(
-        `q ${photoPt.width.toFixed(3)} 0 0 ${photoPt.height.toFixed(3)} ${x.toFixed(3)} ${y.toFixed(3)} cm /Im1 Do Q\n`
-      );
-    }
+  for (let index = 0; index < count; index += 1) {
+    const row = Math.floor(index / columns);
+    const col = index % columns;
+    const x = startX + col * (photoPt.width + GRID_GAP_PT);
+    const y = topY - (row + 1) * photoPt.height - row * GRID_GAP_PT;
+    commands.push(
+      `q ${photoPt.width.toFixed(3)} 0 0 ${photoPt.height.toFixed(3)} ${x.toFixed(3)} ${y.toFixed(3)} cm /Im1 Do Q\n`
+    );
   }
 
   return commands.join("");
@@ -497,6 +516,14 @@ function getPhotoSizeCm() {
   };
 }
 
+function getPhotoCount() {
+  const count = Number(photoCountInput.value);
+  if (!Number.isInteger(count) || count < 1 || count > MAX_PHOTO_COUNT) {
+    return 0;
+  }
+  return count;
+}
+
 function readCmInput(input, fallback) {
   const value = Number.parseFloat(String(input.value).replace(",", "."));
   if (!Number.isFinite(value) || value <= 0) {
@@ -531,14 +558,42 @@ function updatePreviewSize(size) {
 
 function getA4FitError(size) {
   const photoPt = cmToPtSize(size);
-  const gridWidth = photoPt.width * 3 + GRID_GAP_PT * 2;
-  const gridHeight = photoPt.height * 3 + GRID_GAP_PT * 2;
 
-  if (gridWidth > A4.width || gridHeight > A4.height) {
+  if (photoPt.width > A4.width || photoPt.height > A4.height) {
     return t("a4FitError");
   }
 
   return "";
+}
+
+function createPageLayouts(size, photoCount) {
+  const photoPt = cmToPtSize(size);
+  const maxColumns = Math.floor((A4.width + GRID_GAP_PT) / (photoPt.width + GRID_GAP_PT));
+  const maxRows = Math.floor((A4.height + GRID_GAP_PT) / (photoPt.height + GRID_GAP_PT));
+  const maxSquareSide = Math.min(maxColumns, maxRows);
+  const pages = [];
+  let remaining = photoCount;
+
+  while (remaining > 0) {
+    const columns = Math.min(Math.ceil(Math.sqrt(remaining)), maxSquareSide);
+    const count = Math.min(remaining, columns * columns);
+    pages.push({
+      photoPt,
+      columns,
+      rows: Math.ceil(count / columns),
+      count,
+    });
+    remaining -= count;
+  }
+
+  return pages;
+}
+
+function getPdfFileName(size, photoCount) {
+  const pageLayouts = createPageLayouts(size, photoCount);
+  const firstPage = pageLayouts[0];
+  const pageSuffix = pageLayouts.length > 1 ? `-${pageLayouts.length}-pagine` : "";
+  return `fototessere-${photoCount}-${firstPage.columns}x${firstPage.rows}${pageSuffix}.pdf`;
 }
 
 function formatCm(value) {

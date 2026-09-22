@@ -1,4 +1,4 @@
-const CACHE_NAME = "fototessere-pdf-v5";
+const CACHE_NAME = "fototessere-pdf-v8";
 const ASSETS = [
   "./",
   "./index.html",
@@ -31,7 +31,17 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
-  );
+  event.respondWith(networkFirst(event.request));
 });
+
+async function networkFirst(request) {
+  try {
+    const response = await fetch(request);
+    const cache = await caches.open(CACHE_NAME);
+    cache.put(request, response.clone());
+    return response;
+  } catch (error) {
+    const cached = await caches.match(request);
+    return cached || caches.match("./");
+  }
+}
