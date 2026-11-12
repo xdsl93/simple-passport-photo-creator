@@ -201,22 +201,28 @@ h1 {
   gap: 18px;
 }
 
-.preview-frame {
-  width: min(100%, 340px);
-  aspect-ratio: var(--photo-ratio, 7 / 9);
-  justify-self: center;
+.preview-pages {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-block-size: 65dvh;
+  overflow: auto;
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: white;
+  background: #ece7dd;
 }
 
-canvas {
-  display: block;
+.preview-page {
+  position: relative;
   width: 100%;
-  height: 100%;
-  border-radius: 4px;
-  background: #ece7dd;
+  background: white;
+  box-shadow: 0 1px 4px rgba(23, 36, 33, 0.15);
+}
+
+.preview-page img {
+  position: absolute;
+  object-fit: fill;
 }
 
 .photo-actions {
