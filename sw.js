@@ -1,4 +1,4 @@
-const CACHE_NAME = "fototessere-pdf-v8";
+const CACHE_NAME = "fototessere-pdf-v9";
 const ASSETS = [
   "./",
   "./index.html",

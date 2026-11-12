@@ -47,13 +47,12 @@
           </div>
 
           <div class="preview-area" id="previewArea" hidden>
-            <div class="preview-frame">
-              <canvas id="previewCanvas" width="700" height="900" aria-label="Anteprima fototessera" data-i18n-aria-label="previewCanvas"></canvas>
-            </div>
             <div class="photo-actions">
               <button id="removeButton" class="button button-secondary" type="button" data-i18n="removeButton">Elimina</button>
               <button id="pdfButton" class="button button-primary" type="button" data-i18n="pdfButton">Genera PDF</button>
             </div>
+            <div class="preview-pages" id="previewPages" role="region" tabindex="0"
+              aria-label="Anteprima fogli A4" data-i18n-aria-label="previewPages" hidden></div>
           </div>
 
           <p class="status" id="statusMessage" role="status" aria-live="polite"></p>

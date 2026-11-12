@@ -1,7 +1,7 @@
 const photoInput = document.querySelector("#photoInput");
 const dropZone = document.querySelector("#dropZone");
 const previewArea = document.querySelector("#previewArea");
-const previewCanvas = document.querySelector("#previewCanvas");
+const previewPages = document.querySelector("#previewPages");
 const removeButton = document.querySelector("#removeButton");
 const pdfButton = document.querySelector("#pdfButton");
 const installButton = document.querySelector("#installButton");
@@ -29,7 +29,7 @@ const TRANSLATIONS = {
     photoCountLabel: "Numero foto",
     uploadTitle: "Carica una foto",
     uploadHint: "JPG, PNG o immagine dalla fotocamera",
-    previewCanvas: "Anteprima fototessera",
+    previewPages: "Anteprima fogli A4",
     removeButton: "Elimina",
     pdfButton: "Genera PDF",
     installButton: "Installa app",
@@ -48,7 +48,6 @@ const TRANSLATIONS = {
     invalidImage: "Seleziona un file immagine valido.",
     photoLoaded: "Foto caricata. Ritaglio centrale in formato {width} x {height} cm.",
     unreadableImage: "Immagine non leggibile. Prova con un file JPG o PNG.",
-    previewUpdated: "Anteprima aggiornata: {width} x {height} cm.",
     photoRemoved: "Foto eliminata. Puoi caricarne una nuova.",
     a4FitError: "Queste dimensioni non entrano in un foglio A4. Riduci larghezza o altezza.",
     invalidPhotoCount: "Inserisci un numero di foto tra 1 e 200.",
@@ -67,7 +66,7 @@ const TRANSLATIONS = {
     photoCountLabel: "Number of photos",
     uploadTitle: "Upload a photo",
     uploadHint: "JPG, PNG or camera image",
-    previewCanvas: "Passport photo preview",
+    previewPages: "A4 page preview",
     removeButton: "Remove",
     pdfButton: "Generate PDF",
     installButton: "Install app",
@@ -86,7 +85,6 @@ const TRANSLATIONS = {
     invalidImage: "Select a valid image file.",
     photoLoaded: "Photo uploaded. Center crop set to {width} x {height} cm.",
     unreadableImage: "Image could not be read. Try a JPG or PNG file.",
-    previewUpdated: "Preview updated: {width} x {height} cm.",
     photoRemoved: "Photo removed. You can upload a new one.",
     a4FitError: "These dimensions do not fit on an A4 sheet. Reduce width or height.",
     invalidPhotoCount: "Enter a number of photos between 1 and 200.",
@@ -105,7 +103,7 @@ const TRANSLATIONS = {
     photoCountLabel: "Numero de fotos",
     uploadTitle: "Sube una foto",
     uploadHint: "JPG, PNG o imagen de la cámara",
-    previewCanvas: "Vista previa de foto carnet",
+    previewPages: "Vista previa de las hojas A4",
     removeButton: "Eliminar",
     pdfButton: "Generar PDF",
     installButton: "Instalar app",
@@ -124,7 +122,6 @@ const TRANSLATIONS = {
     invalidImage: "Selecciona un archivo de imagen valido.",
     photoLoaded: "Foto cargada. Recorte central en formato {width} x {height} cm.",
     unreadableImage: "No se puede leer la imagen. Prueba con un archivo JPG o PNG.",
-    previewUpdated: "Vista previa actualizada: {width} x {height} cm.",
     photoRemoved: "Foto eliminada. Puedes subir una nueva.",
     a4FitError: "Estas dimensiones no caben en una hoja A4. Reduce el ancho o el alto.",
     invalidPhotoCount: "Introduce un numero de fotos entre 1 y 200.",
@@ -200,18 +197,10 @@ dropZone.addEventListener("drop", (event) => {
   }
 });
 
-[widthInput, heightInput].forEach((input) => {
+[widthInput, heightInput, photoCountInput].forEach((input) => {
   input.addEventListener("input", () => {
-    const size = getPhotoSizeCm();
-    updatePreviewSize(size);
     if (selectedImage) {
-      drawPreview();
-      setStatus(
-        t("previewUpdated", {
-          width: formatCm(size.width),
-          height: formatCm(size.height),
-        })
-      );
+      setStatus(drawPreview(getPrintSettings()));
     }
   });
 });
@@ -250,16 +239,9 @@ pdfButton.addEventListener("click", async () => {
   }
 
   try {
-    const size = getPhotoSizeCm();
-    const photoCount = getPhotoCount();
-    if (!photoCount) {
-      setStatus(t("invalidPhotoCount"));
-      return;
-    }
-
-    const fitError = getA4FitError(size);
-    if (fitError) {
-      setStatus(fitError);
+    const { size, photoCount, pageLayouts, error } = getPrintSettings();
+    if (error) {
+      setStatus(error);
       return;
     }
 
@@ -267,9 +249,9 @@ pdfButton.addEventListener("click", async () => {
     setStatus(t("creatingPdf"));
     const photo = createPassportCanvas(selectedImage, ...getOutputCanvasSize(size));
     const jpeg = await canvasToJpegBytes(photo);
-    const pdfBytes = createPdf(jpeg.bytes, photo.width, photo.height, size, photoCount);
+    const pdfBytes = createPdf(jpeg.bytes, photo.width, photo.height, pageLayouts);
     const blob = new Blob([pdfBytes], { type: "application/pdf" });
-    const fileName = getPdfFileName(size, photoCount);
+    const fileName = getPdfFileName(pageLayouts, photoCount);
     const file = new File([blob], fileName, { type: "application/pdf" });
 
     if (navigator.canShare?.({ files: [file] })) {
@@ -308,13 +290,13 @@ async function loadPhoto(file) {
   try {
     const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
     selectedImage = bitmap;
-    updatePreviewSize(getPhotoSizeCm());
-    drawPreview();
+    const settings = getPrintSettings();
+    const error = drawPreview(settings);
     dropZone.hidden = true;
     previewArea.hidden = false;
-    const size = getPhotoSizeCm();
+    const { size } = settings;
     setStatus(
-      t("photoLoaded", {
+      error || t("photoLoaded", {
         width: formatCm(size.width),
         height: formatCm(size.height),
       })
@@ -324,20 +306,44 @@ async function loadPhoto(file) {
   }
 }
 
-function drawPreview() {
-  const size = getPhotoSizeCm();
-  updatePreviewSize(size);
-  const canvas = createPassportCanvas(selectedImage, previewCanvas.width, previewCanvas.height);
-  const context = previewCanvas.getContext("2d");
-  context.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-  context.drawImage(canvas, 0, 0);
+function drawPreview({ size, pageLayouts, error }) {
+  if (error) {
+    previewPages.replaceChildren();
+    previewPages.hidden = true;
+    return error;
+  }
+
+  const crop = createPassportCanvas(selectedImage, ...getOutputCanvasSize(size));
+  const photoUrl = crop.toDataURL("image/jpeg", 0.94);
+  const pages = pageLayouts.map((layout) => {
+    const page = document.createElement("div");
+    page.className = "preview-page";
+    page.style.aspectRatio = `${A4.width} / ${A4.height}`;
+
+    for (const { x, top } of getPagePhotoPositions(layout)) {
+      const photo = document.createElement("img");
+      photo.alt = "";
+      photo.style.left = `${x / A4.width * 100}%`;
+      photo.style.top = `${top / A4.height * 100}%`;
+      photo.style.width = `${layout.photoPt.width / A4.width * 100}%`;
+      photo.style.height = `${layout.photoPt.height / A4.height * 100}%`;
+      photo.src = photoUrl;
+      page.append(photo);
+    }
+
+    return page;
+  });
+
+  previewPages.replaceChildren(...pages);
+  previewPages.hidden = false;
+  return "";
 }
 
 function clearPhoto() {
   selectedImage = null;
   photoInput.value = "";
-  const context = previewCanvas.getContext("2d");
-  context.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+  previewPages.replaceChildren();
+  previewPages.hidden = true;
   previewArea.hidden = true;
   dropZone.hidden = false;
   setStatus(t("photoRemoved"));
@@ -389,11 +395,10 @@ function canvasToJpegBytes(canvas) {
   });
 }
 
-function createPdf(jpegBytes, imageWidth, imageHeight, photoSizeCm, photoCount) {
+function createPdf(jpegBytes, imageWidth, imageHeight, pageLayouts) {
   const encoder = new TextEncoder();
   const chunks = [];
   const offsets = [0];
-  const pageLayouts = createPageLayouts(photoSizeCm, photoCount);
   const firstPageObject = 4;
   const objectCount = 3 + pageLayouts.length * 2;
   let length = 0;
@@ -452,24 +457,28 @@ function createPdf(jpegBytes, imageWidth, imageHeight, photoSizeCm, photoCount) 
 }
 
 function createPdfContentStream(layout) {
+  const { width, height } = layout.photoPt;
+  return getPagePhotoPositions(layout).map(({ x, top }) => {
+    const y = A4.height - top - height;
+    return `q ${width.toFixed(3)} 0 0 ${height.toFixed(3)} ${x.toFixed(3)} ${y.toFixed(3)} cm /Im1 Do Q\n`;
+  }).join("");
+}
+
+function getPagePhotoPositions(layout) {
   const { photoPt, columns, rows, count } = layout;
   const gridWidth = photoPt.width * columns + GRID_GAP_PT * (columns - 1);
   const gridHeight = photoPt.height * rows + GRID_GAP_PT * (rows - 1);
   const startX = (A4.width - gridWidth) / 2;
-  const topY = (A4.height - gridHeight) / 2 + gridHeight;
-  const commands = [];
+  const startY = (A4.height - gridHeight) / 2;
 
-  for (let index = 0; index < count; index += 1) {
+  return Array.from({ length: count }, (_, index) => {
     const row = Math.floor(index / columns);
     const col = index % columns;
-    const x = startX + col * (photoPt.width + GRID_GAP_PT);
-    const y = topY - (row + 1) * photoPt.height - row * GRID_GAP_PT;
-    commands.push(
-      `q ${photoPt.width.toFixed(3)} 0 0 ${photoPt.height.toFixed(3)} ${x.toFixed(3)} ${y.toFixed(3)} cm /Im1 Do Q\n`
-    );
-  }
-
-  return commands.join("");
+    return {
+      x: startX + col * (photoPt.width + GRID_GAP_PT),
+      top: startY + row * (photoPt.height + GRID_GAP_PT),
+    };
+  });
 }
 
 function setStatus(message) {
@@ -547,13 +556,12 @@ function getOutputCanvasSize(size) {
   return [Math.round(CANVAS_LONG_SIDE * ratio), CANVAS_LONG_SIDE];
 }
 
-function updatePreviewSize(size) {
-  const [width, height] = getOutputCanvasSize(size);
-  if (previewCanvas.width !== width || previewCanvas.height !== height) {
-    previewCanvas.width = width;
-    previewCanvas.height = height;
-  }
-  previewCanvas.parentElement.style.setProperty("--photo-ratio", `${size.width} / ${size.height}`);
+function getPrintSettings() {
+  const size = getPhotoSizeCm();
+  const photoCount = getPhotoCount();
+  const error = photoCount ? getA4FitError(size) : t("invalidPhotoCount");
+  const pageLayouts = error ? [] : createPageLayouts(size, photoCount);
+  return { size, photoCount, pageLayouts, error };
 }
 
 function getA4FitError(size) {
@@ -589,8 +597,7 @@ function createPageLayouts(size, photoCount) {
   return pages;
 }
 
-function getPdfFileName(size, photoCount) {
-  const pageLayouts = createPageLayouts(size, photoCount);
+function getPdfFileName(pageLayouts, photoCount) {
   const firstPage = pageLayouts[0];
   const pageSuffix = pageLayouts.length > 1 ? `-${pageLayouts.length}-pagine` : "";
   return `fototessere-${photoCount}-${firstPage.columns}x${firstPage.rows}${pageSuffix}.pdf`;
